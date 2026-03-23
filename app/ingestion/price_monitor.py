@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.ingestion.fetcher import DataFetcher
 from app.models import PriceHistory, Product
+from app.webhooks import dispatch_price_change
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,7 @@ class PriceMonitor:
     ) -> None:
         self.db = db
         self.fetcher = fetcher or DataFetcher()
+        self._price_changes: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------
     # Public API
@@ -70,6 +72,10 @@ class PriceMonitor:
                 unchanged += 1
 
         self.db.commit()
+
+        # Dispatch webhook notifications for all detected price changes
+        await self._dispatch_webhooks()
+
         summary = {
             "total_fetched": len(products),
             "created": created,
@@ -109,6 +115,10 @@ class PriceMonitor:
                 unchanged += 1
 
         self.db.commit()
+
+        # Dispatch webhook notifications for all detected price changes
+        await self._dispatch_webhooks()
+
         return {
             "source": source,
             "total_fetched": len(products),
@@ -139,6 +149,12 @@ class PriceMonitor:
         if latest_price is None or latest_price != data["price"]:
             self._update_product(product)
             self._record_price(product, data["price"], data["source"])
+            self._price_changes.append({
+                "product_name": product.name,
+                "old_price": latest_price,
+                "new_price": data["price"],
+                "source": data["source"],
+            })
             logger.info(
                 "Price change for '%s': %s -> %s (source: %s)",
                 product.name,
@@ -203,3 +219,16 @@ class PriceMonitor:
             source=source,
         )
         self.db.add(entry)
+
+    async def _dispatch_webhooks(self) -> None:
+        """Send webhook notifications for all accumulated price changes."""
+
+        for change in self._price_changes:
+            await dispatch_price_change(
+                db=self.db,
+                product_name=change["product_name"],
+                old_price=change["old_price"],
+                new_price=change["new_price"],
+                source=change["source"],
+            )
+        self._price_changes.clear()
