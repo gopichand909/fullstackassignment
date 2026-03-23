@@ -1,0 +1,42 @@
+[
+  {
+    "id": "grailed-001",
+    "title": "Gucci GG Marmont Matelasse Shoulder Bag",
+    "designer": "Gucci",
+    "category": "Bags",
+    "price": 1250.00,
+    "url": "https://www.grailed.com/listings/grailed-001"
+  },
+  {
+    "id": "grailed-002",
+    "title": "Louis Vuitton Monogram Keepall 55",
+    "designer": "Louis Vuitton",
+    "category": "Bags",
+    "price": 1480.00,
+    "url": "https://www.grailed.com/listings/grailed-002"
+  },
+  {
+    "id": "grailed-003",
+    "title": "Prada Re-Nylon Backpack",
+    "designer": "Prada",
+    "category": "Bags",
+    "price": 890.00,
+    "url": "https://www.grailed.com/listings/grailed-003"
+  },
+  {
+    "id": "grailed-004",
+    "title": "Balenciaga Triple S Sneakers",
+    "designer": "Balenciaga",
+    "category": "Shoes",
+    "price": 650.00,
+    "url": "https://www.grailed.com/listings/grailed-004"
+  },
+  {
+    "id": "grailed-005",
+    "title": "Chrome Hearts Cemetery Cross Ring",
+    "designer": "Chrome Hearts",
+    "category": "Jewelry",
+    "price": 1100.00,
+    "url": "https://www.grailed.com/listings/grailed-005"
+  }
+]
