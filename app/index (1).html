@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entrupy — Price Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=Instrument+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-mark">◈</span>
+      <span class="brand-name">Entrupy</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-view="dashboard">
+        <span class="nav-icon">▦</span>
+        <span>Dashboard</span>
+      </button>
+      <button class="nav-item" data-view="products">
+        <span class="nav-icon">☰</span>
+        <span>Products</span>
+      </button>
+      <button class="nav-item" data-view="webhooks">
+        <span class="nav-icon">⊕</span>
+        <span>Webhooks</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="api-key-section">
+        <label class="field-label" for="apiKeyInput">API Key</label>
+        <div class="key-input-wrapper">
+          <input
+            type="password"
+            id="apiKeyInput"
+            class="key-input"
+            placeholder="Enter X-API-Key…"
+            autocomplete="off"
+          />
+          <button class="key-apply-btn" id="applyKeyBtn" title="Apply Key">→</button>
+        </div>
+        <div class="key-status" id="keyStatus"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ===== MOBILE HEADER ===== -->
+  <header class="mobile-header">
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <span></span><span></span><span></span>
+    </button>
+    <span class="mobile-brand">◈ Entrupy</span>
+  </header>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main-content" id="mainContent">
+
+    <!-- ─── DASHBOARD VIEW ─── -->
+    <section class="view active" id="view-dashboard">
+      <header class="view-header">
+        <div>
+          <p class="view-eyebrow">Overview</p>
+          <h1 class="view-title">Dashboard</h1>
+        </div>
+        <button class="refresh-btn" id="dashRefreshBtn">↻ Refresh</button>
+      </header>
+
+      <!-- Stats Grid -->
+      <div class="stats-grid">
+        <div class="stat-card" id="stat-products">
+          <div class="stat-label">Total Products</div>
+          <div class="stat-value" id="statTotalProducts">—</div>
+          <div class="stat-sub">tracked across all sources</div>
+        </div>
+        <div class="stat-card accent" id="stat-avg">
+          <div class="stat-label">Average Price</div>
+          <div class="stat-value" id="statAvgPrice">—</div>
+          <div class="stat-sub">across all records</div>
+        </div>
+        <div class="stat-card" id="stat-records">
+          <div class="stat-label">Price Records</div>
+          <div class="stat-value" id="statTotalRecords">—</div>
+          <div class="stat-sub">total observations</div>
+        </div>
+        <div class="stat-card highlight" id="stat-changes">
+          <div class="stat-label">Price Changes</div>
+          <div class="stat-value" id="statChanges">—</div>
+          <div class="stat-sub">products with fluctuation</div>
+        </div>
+      </div>
+
+      <!-- Category Chart -->
+      <div class="chart-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Products by Category</h2>
+          <span class="panel-badge" id="categoryCount">—</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="categoryChart"></canvas>
+          <div class="chart-legend" id="chartLegend"></div>
+        </div>
+      </div>
+
+      <!-- Sources Panel -->
+      <div class="sources-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Monitored Sources</h2>
+        </div>
+        <div class="sources-list">
+          <div class="source-badge">
+            <span class="source-dot grailed"></span>
+            <span>Grailed</span>
+          </div>
+          <div class="source-badge">
+            <span class="source-dot fashionphile"></span>
+            <span>Fashionphile</span>
+          </div>
+          <div class="source-badge">
+            <span class="source-dot firstdibs"></span>
+            <span>1stDibs</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PRODUCTS VIEW ─── -->
+    <section class="view" id="view-products">
+      <header class="view-header">
+        <div>
+          <p class="view-eyebrow">Inventory</p>
+          <h1 class="view-title">Products</h1>
+        </div>
+        <button class="refresh-btn" id="prodRefreshBtn">↻ Refresh</button>
+      </header>
+
+      <!-- Filters -->
+      <div class="filter-bar">
+        <div class="search-wrapper">
+          <span class="search-icon">⌕</span>
+          <input
+            type="text"
+            id="productSearch"
+            class="search-input"
+            placeholder="Search by name, brand, category…"
+          />
+          <button class="clear-search" id="clearSearch" title="Clear">✕</button>
+        </div>
+        <div class="filter-controls">
+          <input type="number" id="filterMinPrice" class="filter-input" placeholder="Min $" min="0" />
+          <span class="filter-sep">–</span>
+          <input type="number" id="filterMaxPrice" class="filter-input" placeholder="Max $" min="0" />
+          <select id="filterCategory" class="filter-select">
+            <option value="">All Categories</option>
+          </select>
+          <button class="apply-filter-btn" id="applyFiltersBtn">Filter</button>
+          <button class="clear-filter-btn" id="clearFiltersBtn">Clear</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="table-wrapper">
+        <table class="data-table" id="productTable">
+          <thead>
+            <tr>
+              <th class="sortable" data-col="name">Product <span class="sort-icon">↕</span></th>
+              <th class="sortable" data-col="brand">Brand <span class="sort-icon">↕</span></th>
+              <th class="sortable" data-col="category">Category <span class="sort-icon">↕</span></th>
+              <th>Source</th>
+              <th class="sortable" data-col="latest_price">Latest Price <span class="sort-icon">↕</span></th>
+              <th>Updated</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody">
+            <tr class="placeholder-row">
+              <td colspan="7">
+                <div class="empty-state">
+                  <span class="empty-icon">◈</span>
+                  <p>Enter your API key and click a nav item to load data</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-footer">
+        <span class="result-count" id="resultCount">0 products</span>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </section>
+
+    <!-- ─── PRODUCT DETAIL VIEW ─── -->
+    <section class="view" id="view-detail">
+      <header class="view-header">
+        <button class="back-btn" id="backToProducts">← Back to Products</button>
+        <button class="refresh-btn" id="detailRefreshBtn">↻ Refresh</button>
+      </header>
+
+      <div class="detail-layout">
+        <!-- Left: Product Info -->
+        <div class="detail-info-panel">
+          <div class="detail-badge" id="detailSource">—</div>
+          <h1 class="detail-name" id="detailName">—</h1>
+          <p class="detail-brand" id="detailBrand">—</p>
+
+          <div class="detail-meta-grid">
+            <div class="meta-item">
+              <span class="meta-label">Category</span>
+              <span class="meta-value" id="detailCategory">—</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Current Price</span>
+              <span class="meta-value price-highlight" id="detailCurrentPrice">—</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">First Seen</span>
+              <span class="meta-value" id="detailCreated">—</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Last Updated</span>
+              <span class="meta-value" id="detailUpdated">—</span>
+            </div>
+          </div>
+
+          <div class="price-delta-box" id="priceDeltaBox">
+            <span class="delta-label">Price Change</span>
+            <span class="delta-value" id="priceDelta">—</span>
+          </div>
+        </div>
+
+        <!-- Right: History -->
+        <div class="detail-history-panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Price History</h2>
+            <span class="panel-badge" id="historyCount">—</span>
+          </div>
+
+          <!-- Sparkline -->
+          <div class="sparkline-container">
+            <canvas id="sparklineChart"></canvas>
+          </div>
+
+          <!-- History Table -->
+          <div class="history-table-wrapper">
+            <table class="data-table history-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Price</th>
+                  <th>Source</th>
+                  <th>Recorded At</th>
+                  <th>Change</th>
+                </tr>
+              </thead>
+              <tbody id="historyTableBody">
+                <tr><td colspan="5" class="loading-cell">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── WEBHOOKS VIEW ─── -->
+    <section class="view" id="view-webhooks">
+      <header class="view-header">
+        <div>
+          <p class="view-eyebrow">Integrations</p>
+          <h1 class="view-title">Webhooks</h1>
+        </div>
+        <button class="refresh-btn" id="whRefreshBtn">↻ Refresh</button>
+      </header>
+
+      <!-- Register Form -->
+      <div class="webhook-form-panel">
+        <h2 class="panel-title">Register Webhook</h2>
+        <p class="panel-sub">Receive a POST request whenever a price change is detected.</p>
+        <div class="webhook-form">
+          <input
+            type="url"
+            id="webhookUrlInput"
+            class="webhook-url-input"
+            placeholder="https://your-server.com/hooks/price-change"
+          />
+          <button class="register-btn" id="registerWebhookBtn">Register</button>
+        </div>
+        <p class="webhook-error" id="webhookError"></p>
+      </div>
+
+      <!-- Webhooks Table -->
+      <div class="table-wrapper">
+        <table class="data-table" id="webhooksTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>URL</th>
+              <th>Status</th>
+              <th>Registered</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="webhookTableBody">
+            <tr class="placeholder-row">
+              <td colspan="5">
+                <div class="empty-state">
+                  <span class="empty-icon">⊕</span>
+                  <p>No webhooks registered yet</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== TOAST ===== -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- ===== LOADING OVERLAY ===== -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner">
+      <div class="spinner-ring"></div>
+      <p class="spinner-text">Fetching data…</p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
