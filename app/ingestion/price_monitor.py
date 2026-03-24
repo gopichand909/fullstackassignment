@@ -1,12 +1,3 @@
-"""Price Monitor – detects price changes and persists them to the database.
-
-The ``PriceMonitor`` class is the central orchestrator of the ingestion
-pipeline.  It uses :class:`DataFetcher` to pull listings from every
-supported marketplace, compares each price against the most recent
-``PriceHistory`` row for that product, and – when a difference is found –
-updates the ``Product`` record and inserts a new ``PriceHistory`` entry.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -31,7 +22,7 @@ class PriceMonitor:
     db : sqlalchemy.orm.Session
         An active SQLAlchemy session used for all database operations.
     fetcher : DataFetcher | None
-        An optional :class:`DataFetcher` instance.  A default one is
+        An optional :class:`DataFetcher` instance. A default one is
         created when not supplied.
     """
 
@@ -49,14 +40,14 @@ class PriceMonitor:
     # ------------------------------------------------------------------
 
     async def run(self) -> dict[str, Any]:
-        """Execute a full ingestion cycle.
+        """Execute a full ingestion cycle using the unified CSV source.
 
         Returns a summary dict with counts of created, updated, and
         unchanged products.
         """
 
         products = await self.fetcher.fetch_all()
-        logger.info("Fetched %d product listings across all sources", len(products))
+        logger.info("Fetched %d product listings from unified source", len(products))
 
         created = 0
         updated = 0
@@ -86,16 +77,9 @@ class PriceMonitor:
         return summary
 
     async def run_source(self, source: str, url: str | None = None) -> dict[str, Any]:
-        """Ingest from a single marketplace *source*.
-
-        Parameters
-        ----------
-        source : str
-            One of the supported marketplace identifiers
-            (``grailed``, ``fashionphile``, ``firstdibs``).
-        url : str | None
-            If provided, data is fetched from this URL instead of
-            the local sample file.
+        """Ingest from the marketplace source. 
+        
+        Note: With the unified CSV, 'source' is usually 'csv_import'.
         """
 
         products = await self.fetcher.fetch_source(source, url=url)
@@ -115,8 +99,6 @@ class PriceMonitor:
                 unchanged += 1
 
         self.db.commit()
-
-        # Dispatch webhook notifications for all detected price changes
         await self._dispatch_webhooks()
 
         return {
@@ -146,7 +128,8 @@ class PriceMonitor:
 
         latest_price = self._get_latest_price(product.id)
 
-        if latest_price is None or latest_price != data["price"]:
+        # Detect price changes or first-time history for existing product
+        if latest_price is None or abs(latest_price - data["price"]) > 0.01:
             self._update_product(product)
             self._record_price(product, data["price"], data["source"])
             self._price_changes.append({
@@ -156,31 +139,24 @@ class PriceMonitor:
                 "source": data["source"],
             })
             logger.info(
-                "Price change for '%s': %s -> %s (source: %s)",
-                product.name,
-                latest_price,
-                data["price"],
-                data["source"],
+                "Price change for '%s': %s -> %s",
+                product.name, latest_price, data["price"]
             )
             return "updated"
 
         return "unchanged"
 
     def _find_product(self, data: dict[str, Any]) -> Product | None:
-        """Look up an existing product by name, brand, and source URL."""
-
+        """Look up existing product by its unique source URL or source ID."""
+        # Using original_source (URL) as the unique identifier for lookups
         return (
             self.db.query(Product)
-            .filter(
-                Product.name == data["name"],
-                Product.brand == data["brand"],
-                Product.original_source == data["source"],
-            )
+            .filter(Product.original_source == data["source"])
             .first()
         )
 
     def _create_product(self, data: dict[str, Any]) -> Product:
-        """Insert a brand-new ``Product`` row and flush to obtain its id."""
+        """Insert a brand-new ``Product`` row."""
 
         product = Product(
             name=data["name"],
@@ -189,19 +165,16 @@ class PriceMonitor:
             original_source=data["source"],
         )
         self.db.add(product)
-        self.db.flush()
-        logger.info("Created new product: %s (brand=%s)", product.name, product.brand)
+        self.db.flush() # Flush to get the generated product.id
+        logger.info("Created product: %s", product.name)
         return product
 
     def _update_product(self, product: Product) -> None:
-        """Touch the ``updated_at`` timestamp on a product."""
-
-        product.updated_at = datetime.utcnow()  # type: ignore[assignment]
+        """Update the product timestamp."""
+        product.updated_at = datetime.utcnow()
 
     def _get_latest_price(self, product_id: int) -> float | None:
-        """Return the most recent recorded price for *product_id*, or
-        ``None`` if no history exists yet."""
-
+        """Get the latest recorded price from history."""
         row = (
             self.db.query(PriceHistory.price)
             .filter(PriceHistory.product_id == product_id)
@@ -211,8 +184,7 @@ class PriceMonitor:
         return float(row.price) if row is not None else None
 
     def _record_price(self, product: Product, price: float, source: str) -> None:
-        """Insert a new ``PriceHistory`` row."""
-
+        """Insert new PriceHistory record."""
         entry = PriceHistory(
             product_id=product.id,
             price=price,
@@ -221,8 +193,7 @@ class PriceMonitor:
         self.db.add(entry)
 
     async def _dispatch_webhooks(self) -> None:
-        """Send webhook notifications for all accumulated price changes."""
-
+        """Fire notifications for detected changes."""
         for change in self._price_changes:
             await dispatch_price_change(
                 db=self.db,
