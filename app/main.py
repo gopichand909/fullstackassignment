@@ -2,6 +2,7 @@ import logging
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,17 @@ app = FastAPI(
     title="Product Price Monitoring System",
     description="API for tracking product prices across multiple sources.",
     version="1.0.0",
+)
+
+# ── CORS ──────────────────────────────────────────────────────────────────────
+# Allow the frontend (opened as a local file or dev server) to call the API.
+# In production, replace the wildcard with your actual frontend origin.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],          # tighten to e.g. ["http://localhost:5500"] in prod
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Create all tables on startup
